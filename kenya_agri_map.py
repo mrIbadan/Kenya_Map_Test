@@ -105,7 +105,7 @@ with tab2:
     city_df = load_city_data()
     county_geojson = load_county_geojson()
     view_mode = st.radio("Map View", ["City Markers", "County Choropleth", "Combined View"], horizontal=True)
-    selected_type = st.selectbox("Filter by Risk Type", options=sorted(set(v['type'] for v in region_agricultural_risks.values())))
+    selected_type = st.selectbox("Filter by Risk Type", options=["All"] + sorted(set(v['type'] for v in region_agricultural_risks.values())))
 
     county_counts = city_df['admin_name'].value_counts().reset_index()
     county_counts.columns = ['admin_name', 'city_count']
@@ -134,7 +134,7 @@ with tab2:
             for feature in county_geojson['features']:
                 county = feature['properties'][geo_key]
                 risk_info = region_agricultural_risks.get(county, region_agricultural_risks["DEFAULT"])
-                if risk_info['type'] == selected_type:
+                if selected_type == "All" or risk_info['type'] == selected_type:
                     tooltip_text = f"<b>{county} County</b><br>Severity: <b>{risk_info['severity']}</b><br>Type: {risk_info['type']}<br>Details: {risk_info['details']}"
                     folium.GeoJson(
                         feature,
@@ -151,7 +151,7 @@ with tab2:
         for _, city in city_df.iterrows():
             county = city['admin_name'] if pd.notnull(city['admin_name']) else "Unknown"
             risk_info = region_agricultural_risks.get(county, region_agricultural_risks["DEFAULT"])
-            if risk_info['type'] == selected_type:
+            if selected_type == "All" or risk_info['type'] == selected_type:
                 risk_list = "<br>".join([f"• {risk}" for risk in risk_info["risks"]])
                 popup_html = f"""
                 <div style="width: 200px; font-family: Arial;">
