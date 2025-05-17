@@ -4,37 +4,22 @@ import folium
 from streamlit_folium import st_folium
 import requests
 from folium.plugins import MarkerCluster
-
 from streamlit.components.v1 import html
 
 # --- STATIC LOGOS AND FLAG (ALWAYS VISIBLE) ---
-LOGO_LEFT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Ubuntu.png"
-LOGO_RIGHT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Kenya_Flag.jpg"
+LOGO_LEFT_URL = "https://cdn.jsdelivr.net/gh/mrIbadan/Kenya_Map_Test@main/Ubuntu.png"
+LOGO_RIGHT_URL = "https://cdn.jsdelivr.net/gh/mrIbadan/Kenya_Map_Test@main/Kenya_Flag.jpg"
 
 html(f"""
-<style>
-.fixed-logo-left {{
-    position: fixed;
-    top: 0.5rem;
-    left: 1.2rem;
-    z-index: 10000;
-    width: 70px;
-    height: 70px;
-}}
-.fixed-logo-right {{
-    position: fixed;
-    top: 0.5rem;
-    right: 1.2rem;
-    z-index: 10000;
-    width: 70px;
-    height: 50px;
-}}
-</style>
-<img src="{LOGO_LEFT_URL}" class="fixed-logo-left" alt="Ubuntu Impact Labs Logo">
-<img src="{LOGO_RIGHT_URL}" class="fixed-logo-right" alt="Kenya Flag">
-""", height=0)
+<div style="position: fixed; top: 0.5rem; left: 1.2rem; z-index: 10000;">
+    <img src="{LOGO_LEFT_URL}" style="width: 70px; height: 70px;" alt="Ubuntu Impact Labs Logo">
+</div>
+<div style="position: fixed; top: 0.5rem; right: 1.2rem; z-index: 10000;">
+    <img src="{LOGO_RIGHT_URL}" style="width: 70px; height: 50px;" alt="Kenya Flag">
+</div>
+""", height=80)
 
-# Add a spacer so nothing is hidden under the logos
+# Add spacer
 st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
 
 # ======================
@@ -111,7 +96,6 @@ with tab2:
     # --- FOLIUM MAP ---
     m = folium.Map(location=[0.2, 37.0], zoom_start=6, tiles='CartoDB positron')
 
-    # --- CHOROPLETH ---
     if view_mode in ["County Choropleth", "Combined View"]:
         possible_keys = ["shapeName", "name", "NAME_1", "admin", "ADM1_EN"]
         geo_key = None
