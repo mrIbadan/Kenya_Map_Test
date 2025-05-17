@@ -5,40 +5,39 @@ from streamlit_folium import st_folium
 import requests
 from folium.plugins import MarkerCluster
 
-# ======================
-# STATIC HEADER (LOGOS)
-# ======================
+# --- STATIC LOGOS AND FLAG ---
 LOGO_LEFT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Ubuntu.png"
 LOGO_RIGHT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Kenya_Flag.jpg"
 
-header_html = f"""
-<style>
-    .fixed-header {{
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 80px;
-        background-color: white;
-        z-index: 1000;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 24px;
-    }}
-    .header-logo {{
-        height: 60px;
-        object-fit: contain;
-    }}
-</style>
-<div class="fixed-header">
-    <img class="header-logo" src="{LOGO_LEFT_URL}" alt="Ubuntu Impact Labs">
-    <img class="header-logo" src="{LOGO_RIGHT_URL}" alt="Kenya Flag" style="height: 50px;">
-</div>
-"""
-st.markdown(header_html, unsafe_allow_html=True)
-st.markdown("<div style='height: 90px;'></div>", unsafe_allow_html=True)  # Spacer so content isn't hidden
+st.markdown(
+    f"""
+    <style>
+        .fixed-logo-left {{
+            position: fixed;
+            top: 0.5rem;
+            left: 1.2rem;
+            z-index: 9999;
+            width: 70px;
+            height: 70px;
+        }}
+        .fixed-logo-right {{
+            position: fixed;
+            top: 0.5rem;
+            right: 1.2rem;
+            z-index: 9999;
+            width: 70px;
+            height: 50px;
+        }}
+        /* Spacer to prevent content being hidden under logos */
+        .block-container {{
+            padding-top: 80px !important;
+        }}
+    </style>
+    <img src="{LOGO_LEFT_URL}" class="fixed-logo-left" alt="Ubuntu Impact Labs Logo">
+    <img src="{LOGO_RIGHT_URL}" class="fixed-logo-right" alt="Kenya Flag">
+    """,
+    unsafe_allow_html=True
+)
 
 # ======================
 # DATA LOADING
