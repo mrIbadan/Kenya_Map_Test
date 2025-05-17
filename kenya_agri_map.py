@@ -11,9 +11,8 @@ def get_image_base64(image_path):
     with open(image_path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
-UBUNTU_LOGO_PATH = "image.jpg"  # Make sure this is the correct path to your logo file
+UBUNTU_LOGO_PATH = "image.jpg"  # Your logo file must be in the same directory
 
-# Try to load the logo as base64
 try:
     ubuntu_logo_base64 = get_image_base64(UBUNTU_LOGO_PATH)
 except Exception as e:
@@ -167,7 +166,6 @@ m = folium.Map(location=[0.2, 37.0], zoom_start=6, tiles='CartoDB positron')
 
 # --- CHOROPLETH ---
 if view_mode in ["County Choropleth", "Combined View"]:
-    # Try to detect the correct property key
     possible_keys = ["shapeName", "name", "NAME_1", "admin", "ADM1_EN"]
     geo_key = None
     for key in possible_keys:
@@ -186,7 +184,6 @@ if view_mode in ["County Choropleth", "Combined View"]:
             line_opacity=0.2,
             legend_name='Number of Major Cities'
         ).add_to(m)
-        # Add agricultural risk tooltip to each county
         for feature in county_geojson['features']:
             county = feature['properties'][geo_key]
             risk_info = region_agricultural_risks.get(county, region_agricultural_risks["DEFAULT"])
@@ -201,7 +198,6 @@ if view_mode in ["County Choropleth", "Combined View"]:
                 }
             ).add_to(m)
 
-# --- CITY MARKERS ---
 if view_mode in ["City Markers", "Combined View"]:
     marker_cluster = MarkerCluster().add_to(m)
     for _, city in city_df.iterrows():
@@ -229,9 +225,7 @@ if view_mode in ["City Markers", "Combined View"]:
 
 st_folium(m, width=1000, height=650)
 
-# --- SUMMARY ---
 st.write("### County Coverage")
 st.dataframe(county_counts.rename(columns={"admin_name": "County", "city_count": "Number of Cities"}))
-
 st.write("### Example of City Data")
 st.dataframe(city_df.head(20))
