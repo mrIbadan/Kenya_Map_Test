@@ -1,11 +1,12 @@
 streamlit
-folium
 pandas
-requests
+folium
 streamlit-folium
+requests
 shap
 numpy
 plotly
-leaflet
-sklearn
 xgboost
+scikit-learn
+lightgbm
+bayesian-optimization
