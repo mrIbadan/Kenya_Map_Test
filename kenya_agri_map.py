@@ -6,7 +6,7 @@ import requests
 from folium.plugins import MarkerCluster
 from streamlit.components.v1 import html
 
-# --- STATIC LOGOS AND FLAG (ALWAYS VISIBLE) ---
+# --- STATIC LOGOS AND FLAG (ALWAYS VISIBLE AND BIGGER) ---
 LOGO_LEFT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Ubuntu.png"
 LOGO_RIGHT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Kenya_Flag.jpg"
 
@@ -17,16 +17,19 @@ html(f"""
     top: 0.5rem;
     left: 1.2rem;
     z-index: 10000;
-    width: 90px;
-    height: 90px;
+    width: 120px;
+    height: 120px;
 }}
 .fixed-logo-right {{
     position: fixed;
     top: 0.5rem;
     right: 1.2rem;
     z-index: 10000;
-    width: 90px;
-    height: 65px;
+    width: 120px;
+    height: 85px;
+}}
+body {{
+    padding-top: 130px;
 }}
 </style>
 <img src="{LOGO_LEFT_URL}" class="fixed-logo-left" alt="Ubuntu Impact Labs Logo">
@@ -34,7 +37,7 @@ html(f"""
 """, height=0)
 
 # Add a spacer so nothing is hidden under the logos
-st.markdown("<div style='height: 100px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 130px;'></div>", unsafe_allow_html=True)
 
 # ======================
 # DATA LOADING
@@ -104,14 +107,11 @@ with tab2:
     view_mode = st.radio("Map View", ["City Markers", "County Choropleth", "Combined View"], horizontal=True)
     selected_type = st.selectbox("Filter by Risk Type", options=sorted(set(v['type'] for v in region_agricultural_risks.values())))
 
-    # --- AGGREGATE CITY DATA BY COUNTY ---
     county_counts = city_df['admin_name'].value_counts().reset_index()
     county_counts.columns = ['admin_name', 'city_count']
 
-    # --- FOLIUM MAP ---
     m = folium.Map(location=[0.2, 37.0], zoom_start=6, tiles='CartoDB positron')
 
-    # --- CHOROPLETH ---
     if view_mode in ["County Choropleth", "Combined View"]:
         possible_keys = ["shapeName", "name", "NAME_1", "admin", "ADM1_EN"]
         geo_key = None
@@ -135,7 +135,7 @@ with tab2:
                 county = feature['properties'][geo_key]
                 risk_info = region_agricultural_risks.get(county, region_agricultural_risks["DEFAULT"])
                 if risk_info['type'] == selected_type:
-                    tooltip_text = f"{county} County: <b>{risk_info['severity']} Risk</b> ({risk_info['type']})<br>" + "<br>".join(risk_info["risks"])
+                    tooltip_text = f"<b>{county} County</b><br>Severity: <b>{risk_info['severity']}</b><br>Type: {risk_info['type']}<br>Details: {risk_info['details']}"
                     folium.GeoJson(
                         feature,
                         tooltip=tooltip_text,
@@ -159,7 +159,7 @@ with tab2:
                     <p><b>County:</b> {county}</p>
                     <p><b>Population:</b> {int(city['population']) if pd.notnull(city['population']) else 'Unknown'}</p>
                     <hr style="margin: 5px 0;">
-                    <p><b>Agricultural Risk Level:</b> <span style="color:{risk_color_map[risk_info['severity']]}; font-weight:bold;">{risk_info['severity']}</span> ({risk_info['type']})</p>
+                    <p><b>Risk:</b> <span style=\"color:{risk_color_map[risk_info['severity']]}; font-weight:bold;\">{risk_info['severity']}</span> ({risk_info['type']})</p>
                     <p><b>Key Risks:</b></p>
                     <div style="margin-left: 10px;">{risk_list}</div>
                     <p style="font-size: 11px; font-style: italic; margin-top: 5px;">{risk_info['details']}</p>
