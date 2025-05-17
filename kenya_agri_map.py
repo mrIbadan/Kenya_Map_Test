@@ -5,6 +5,13 @@ from streamlit_folium import st_folium
 import requests
 from folium.plugins import MarkerCluster
 from streamlit.components.v1 import html
+import shap
+import numpy as np
+import plotly.express as px
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import make_classification
+from sklearn.metrics import classification_report
 
 # --- STATIC LOGOS AND FLAG (ALWAYS VISIBLE AND BIGGER) ---
 LOGO_LEFT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Ubuntu.png"
@@ -31,6 +38,11 @@ html(f"""
 body {{
     padding-top: 130px;
 }}
+section[data-testid="stSidebar"] > div:first-child {{
+    background-color: #f0f2f6;
+    padding-top: 2rem;
+    border-right: 1px solid #ddd;
+}}
 </style>
 <img src="{LOGO_LEFT_URL}" class="fixed-logo-left" alt="Ubuntu Impact Labs Logo">
 <img src="{LOGO_RIGHT_URL}" class="fixed-logo-right" alt="Kenya Flag">
@@ -41,7 +53,9 @@ st.markdown("<div style='height: 130px;'></div>", unsafe_allow_html=True)
 # ======================
 # SIDEBAR NAVIGATION
 # ======================
-page = st.sidebar.radio("Navigate", ["Home", "Interactive Map", "Summary", "About", "Contact"])
+page = st.sidebar.radio("Navigation", [
+    "Home", "Interactive Map", "Model Results", "Visuals", "Summary", "About", "Contact"
+])
 
 # ======================
 # DATA LOADING
@@ -63,25 +77,17 @@ def load_county_geojson():
 # AGRICULTURAL RISKS
 # ======================
 region_agricultural_risks = {
-    "Nairobi": {"risks": ["Urban agriculture water scarcity", "Food supply chain disruptions", "Land pressure"], "severity": "Moderate", "type": "Urban", "details": "Urban farming faces water constraints and pollution risks"},
-    "Mombasa": {"risks": ["Coastal erosion", "Saltwater intrusion", "Marine ecosystem threats"], "severity": "High", "type": "Marine", "details": "Coastal farming affected by rising sea levels and saltwater"},
-    "Nakuru": {"risks": ["Soil erosion", "Maize diseases (MLND)", "Water pollution"], "severity": "High", "type": "Maize", "details": "MLND can cause losses of over 80% in maize crops"},
-    "Uasin Gishu": {"risks": ["Maize disease", "Erratic rainfall", "Market access issues"], "severity": "Critical", "type": "Maize", "details": "Kenya's breadbasket facing increased disease pressure"},
-    "Kisumu": {"risks": ["Lake pollution", "Flooding", "Fish stock decline"], "severity": "High", "type": "Fishery", "details": "Lake ecosystem degradation affects fishing livelihoods"},
-    "Kakamega": {"risks": ["Deforestation", "Maize diseases", "Land fragmentation"], "severity": "Moderate", "type": "Maize", "details": "High population density straining agricultural land"},
-    "Kiambu": {"risks": ["Coffee Berry Disease", "Coffee Leaf Rust", "Urban encroachment"], "severity": "High", "type": "Coffee", "details": "Coffee diseases can reduce yields by up to 50%"},
-    "Machakos": {"risks": ["Drought frequency", "Soil erosion", "Limited irrigation"], "severity": "Critical", "type": "Weather", "details": "Semi-arid region dependent on water conservation"},
-    "Kitui": {"risks": ["Severe drought cycles", "Crop failure", "Charcoal dependence"], "severity": "Critical", "type": "Weather", "details": "Drought-resistant crops needed for food security"},
-    "Garissa": {"risks": ["Severe drought", "Livestock diseases", "Security issues"], "severity": "Critical", "type": "Livestock", "details": "Pastoralist communities vulnerable to climate shocks"},
-    "Turkana": {"risks": ["Severe drought", "Livestock mortality", "Resource conflicts"], "severity": "Critical", "type": "Livestock", "details": "Among Kenya's most climate-vulnerable regions"},
-    "DEFAULT": {"risks": ["Erratic rainfall", "Pests and diseases", "Market access challenges"], "severity": "Moderate", "type": "General", "details": "General agricultural challenges across Kenya"}
+    "Nairobi": {"risks": ["Urban agriculture water scarcity"], "severity": "Moderate", "type": "Urban", "details": "Urban farming faces water constraints"},
+    "Uasin Gishu": {"risks": ["Maize disease"], "severity": "Critical", "type": "Maize", "details": "Breadbasket disease pressure"},
+    "Kitui": {"risks": ["Severe drought"], "severity": "Critical", "type": "Weather", "details": "Food security risks"},
+    "DEFAULT": {"risks": ["Generic risks"], "severity": "Moderate", "type": "General", "details": "General challenges"}
 }
 
 risk_color_map = {
-    "Critical": "#ff0000",  # red
-    "High": "#ff7f00",      # orange
-    "Moderate": "#00ff00",  # green
-    "Low": "#1f78b4"        # blue
+    "Critical": "#ff0000",
+    "High": "#ff7f00",
+    "Moderate": "#00ff00",
+    "Low": "#1f78b4"
 }
 
 # ======================
@@ -90,110 +96,84 @@ risk_color_map = {
 if page == "Home":
     st.title("Kenya Agricultural Monitoring System")
     st.markdown("""
-    ## Welcome to the Kenya Agricultural Monitoring System
-
-    **Project Overview:**
-    - Interactive visualization of agricultural risks
-    - County-level analysis of crop production
-    - Real-time monitoring of food security indicators
-
-    **Key Features:**
-    - Explore agricultural risks by county
-    - View detailed city-level data
-    - Access summary statistics and trends
+    ## Welcome
+    Explore Kenya's agricultural risks via interactive tools, models, and data visualizations.
     """)
 
 elif page == "Interactive Map":
-    st.title("Interactive Agricultural Risk Map")
+    st.title("Agricultural Risk Map")
     city_df = load_city_data()
-    county_geojson = load_county_geojson()
-    view_mode = st.radio("Map View", ["City Markers", "County Choropleth", "Combined View"], horizontal=True)
-    selected_type = st.selectbox("Filter by Risk Type", options=["All"] + sorted(set(v['type'] for v in region_agricultural_risks.values())))
+    geojson = load_county_geojson()
+    selected_type = st.selectbox("Risk Type", ["All"] + sorted(set(v['type'] for k, v in region_agricultural_risks.items() if k != 'DEFAULT')))
+    m = folium.Map(location=[0.2, 37.0], zoom_start=6)
+    geo_key = next((k for k in ["shapeName", "name"] if k in geojson['features'][0]['properties']), None)
 
-    m = folium.Map(location=[0.2, 37.0], zoom_start=6, tiles='CartoDB positron')
-
-    if view_mode in ["County Choropleth", "Combined View"]:
-        geo_key = None
-        for key in ["shapeName", "name", "NAME_1", "admin", "ADM1_EN"]:
-            if "features" in county_geojson and len(county_geojson["features"]) > 0 and key in county_geojson["features"][0]["properties"]:
-                geo_key = key
-                break
-        if geo_key:
-            for feature in county_geojson['features']:
-                county = feature['properties'][geo_key]
-                risk_info = region_agricultural_risks.get(county, region_agricultural_risks["DEFAULT"])
-                if selected_type == "All" or risk_info['type'] == selected_type:
-                    tooltip_text = f"<b>{county} County</b><br>Severity: <b>{risk_info['severity']}</b><br>Type: {risk_info['type']}<br>Details: {risk_info['details']}"
-                    folium.GeoJson(
-                        feature,
-                        tooltip=tooltip_text,
-                        style_function=lambda x, severity=risk_info['severity']: {
-                            'fillColor': risk_color_map[severity],
-                            'color': risk_color_map[severity],
-                            'fillOpacity': 0.6,
-                            'weight': 1
-                        }
-                    ).add_to(m)
-
-    if view_mode in ["City Markers", "Combined View"]:
-        marker_cluster = MarkerCluster().add_to(m)
-        for _, city in city_df.iterrows():
-            county = city['admin_name'] if pd.notnull(city['admin_name']) else "Unknown"
-            risk_info = region_agricultural_risks.get(county, region_agricultural_risks["DEFAULT"])
-            if selected_type == "All" or risk_info['type'] == selected_type:
-                risk_list = "<br>".join([f"• {risk}" for risk in risk_info["risks"]])
-                popup_html = f"""
-                <div style="width: 200px; font-family: Arial;">
-                    <h3 style="text-align: center; margin: 8px 0;">{city['city']}</h3>
-                    <p><b>County:</b> {county}</p>
-                    <p><b>Population:</b> {int(city['population']) if pd.notnull(city['population']) else 'Unknown'}</p>
-                    <hr style="margin: 5px 0;">
-                    <p><b>Risk:</b> <span style=\"color:{risk_color_map[risk_info['severity']]}; font-weight:bold;\">{risk_info['severity']}</span> ({risk_info['type']})</p>
-                    <p><b>Key Risks:</b></p>
-                    <div style="margin-left: 10px;">{risk_list}</div>
-                    <p style="font-size: 11px; font-style: italic; margin-top: 5px;">{risk_info['details']}</p>
-                </div>
-                """
-                folium.Marker(
-                    location=[city['lat'], city['lng']],
-                    popup=folium.Popup(popup_html, max_width=300),
-                    tooltip=f"{city['city']} ({risk_info['severity']} risk)",
-                    icon=folium.Icon(color='gray', icon='leaf', prefix='fa')
-                ).add_to(marker_cluster)
+    for feature in geojson['features']:
+        county = feature['properties'][geo_key]
+        risk_info = region_agricultural_risks.get(county, region_agricultural_risks['DEFAULT'])
+        if selected_type == "All" or risk_info['type'] == selected_type:
+            popup_content = f"<b>{county}</b><br>Risk Type: {risk_info['type']}<br>Severity: {risk_info['severity']}<br>Details: {risk_info['details']}"
+            folium.GeoJson(
+                feature,
+                tooltip=folium.Tooltip(popup_content, sticky=True),
+                style_function=lambda x, s=risk_info['severity']: {
+                    'fillColor': risk_color_map.get(s, 'gray'),
+                    'color': risk_color_map.get(s, 'gray'),
+                    'fillOpacity': 0.6,
+                    'weight': 1
+                }
+            ).add_to(m)
 
     st_folium(m, width=1000, height=650)
 
+elif page == "Model Results":
+    st.title("Risk Model - GBM")
+    X, y = make_classification(n_samples=1000, n_features=10, n_informative=5, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y)
+    model = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    st.subheader("Classification Report")
+    st.text(classification_report(y_test, y_pred))
+
+    explainer = shap.Explainer(model)
+    shap_values = explainer(X_test)
+    st.subheader("SHAP Summary Plot")
+    st.set_option('deprecation.showPyplotGlobalUse', False)
+    shap.summary_plot(shap_values, X_test)
+    st.pyplot(bbox_inches='tight')
+
+elif page == "Visuals":
+    st.title("Model Visuals")
+    st.markdown("This page will display various charts like line plots, trend analyses, and comparisons.")
+    chart_data = pd.DataFrame({
+        'Year': range(2015, 2025),
+        'Risk Index': np.random.rand(10) * 100
+    })
+    fig = px.line(chart_data, x='Year', y='Risk Index', title='Risk Index Over Time')
+    st.plotly_chart(fig, use_container_width=True)
+
 elif page == "Summary":
-    st.title("Agricultural Risk Summary")
-    city_df = load_city_data()
-    county_counts = city_df['admin_name'].value_counts().reset_index()
-    county_counts.columns = ['County', 'Number of Cities']
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Cities", len(city_df))
-    with col2:
-        st.metric("Counties Covered", len(county_counts))
-    with col3:
-        st.metric("Total Population", f"{city_df['population'].sum():,}")
-    st.subheader("County Distribution")
-    st.dataframe(county_counts, height=300)
-    st.subheader("Sample City Data")
-    st.dataframe(city_df.head(10), height=300)
+    st.title("Summary")
+    df = load_city_data()
+    st.metric("Total Cities", len(df))
+    st.metric("Total Population", f"{df['population'].sum():,}")
+    st.dataframe(df.head())
 
 elif page == "About":
-    st.title("About This Project")
+    st.title("About")
     st.markdown("""
-    This system is built to visualize and monitor agricultural risks across Kenya. It combines geospatial data with domain-specific risk analysis to provide decision-support for policymakers, insurers, and researchers.
+    This project uses geospatial and statistical tools to monitor agricultural risk in Kenya.
 
-    **Built with:** Streamlit, Folium, Python
+    Built by Ubuntu Impact Labs using Python, Streamlit, Folium, Plotly and open datasets.
     """)
 
 elif page == "Contact":
-    st.title("Contact Us")
+    st.title("Contact")
     st.markdown("""
-    For inquiries or suggestions, please contact us at:
-
-    📧 Email: info@kenyarisksystem.org
-    📞 Phone: +254 700 123 456
-    🌐 Website: www.kenyarisksystem.org
+    Email: info@kenyarisksystem.org  
+    Phone: +254 700 123 456  
+    LinkedIn: Kenya Risk Monitoring  
+    Twitter: @KenyaAgriRisk
     """)
