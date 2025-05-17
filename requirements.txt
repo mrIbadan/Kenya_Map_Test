@@ -1,4 +1,5 @@
 streamlit
 folium
 pandas
+requests
 streamlit-folium
