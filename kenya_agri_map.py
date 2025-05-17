@@ -16,6 +16,7 @@ from sklearn.datasets import make_classification
 from sklearn.metrics import classification_report, accuracy_score
 from skopt import BayesSearchCV
 from sklearn.pipeline import Pipeline
+import matplotlib.pyplot as plt
 
 # --- STATIC LOGOS AND FLAG (ALWAYS VISIBLE AND BIGGER) ---
 LOGO_LEFT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Ubuntu.png"
