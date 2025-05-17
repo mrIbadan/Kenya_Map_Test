@@ -3,3 +3,9 @@ folium
 pandas
 requests
 streamlit-folium
+shap
+numpy
+plotly
+leaflet
+sklearn
+xgboost
