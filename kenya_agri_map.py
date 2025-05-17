@@ -5,42 +5,37 @@ from streamlit_folium import st_folium
 import requests
 from folium.plugins import MarkerCluster
 
+from streamlit.components.v1 import html
+
 # --- STATIC LOGOS AND FLAG (ALWAYS VISIBLE) ---
 LOGO_LEFT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Ubuntu.png"
 LOGO_RIGHT_URL = "https://raw.githubusercontent.com/mrIbadan/Kenya_Map_Test/main/Kenya_Flag.jpg"
 
-def static_logos():
-    st.markdown(
-        f"""
-        <style>
-            .fixed-logo-left {{
-                position: fixed;
-                top: 0.5rem;
-                left: 1.2rem;
-                z-index: 9999;
-                width: 70px;
-                height: 70px;
-            }}
-            .fixed-logo-right {{
-                position: fixed;
-                top: 0.5rem;
-                right: 1.2rem;
-                z-index: 9999;
-                width: 70px;
-                height: 50px;
-            }}
-            /* Spacer to prevent content being hidden under logos */
-            .block-container {{
-                padding-top: 90px !important;
-            }}
-        </style>
-        <img src="{LOGO_LEFT_URL}" class="fixed-logo-left" alt="Ubuntu Impact Labs Logo">
-        <img src="{LOGO_RIGHT_URL}" class="fixed-logo-right" alt="Kenya Flag">
-        """,
-        unsafe_allow_html=True
-    )
+html(f"""
+<style>
+.fixed-logo-left {{
+    position: fixed;
+    top: 0.5rem;
+    left: 1.2rem;
+    z-index: 10000;
+    width: 70px;
+    height: 70px;
+}}
+.fixed-logo-right {{
+    position: fixed;
+    top: 0.5rem;
+    right: 1.2rem;
+    z-index: 10000;
+    width: 70px;
+    height: 50px;
+}}
+</style>
+<img src="{LOGO_LEFT_URL}" class="fixed-logo-left" alt="Ubuntu Impact Labs Logo">
+<img src="{LOGO_RIGHT_URL}" class="fixed-logo-right" alt="Kenya Flag">
+""", height=0)
 
-static_logos()
+# Add a spacer so nothing is hidden under the logos
+st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
 
 # ======================
 # DATA LOADING
