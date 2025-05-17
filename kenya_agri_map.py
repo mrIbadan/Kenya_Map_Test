@@ -36,8 +36,12 @@ body {{
 <img src="{LOGO_RIGHT_URL}" class="fixed-logo-right" alt="Kenya Flag">
 """, height=0)
 
-# Add a spacer so nothing is hidden under the logos
 st.markdown("<div style='height: 130px;'></div>", unsafe_allow_html=True)
+
+# ======================
+# SIDEBAR NAVIGATION
+# ======================
+page = st.sidebar.radio("Navigate", ["Home", "Interactive Map", "Summary", "About", "Contact"])
 
 # ======================
 # DATA LOADING
@@ -72,19 +76,18 @@ region_agricultural_risks = {
     "Turkana": {"risks": ["Severe drought", "Livestock mortality", "Resource conflicts"], "severity": "Critical", "type": "Livestock", "details": "Among Kenya's most climate-vulnerable regions"},
     "DEFAULT": {"risks": ["Erratic rainfall", "Pests and diseases", "Market access challenges"], "severity": "Moderate", "type": "General", "details": "General agricultural challenges across Kenya"}
 }
+
 risk_color_map = {
-    "Critical": "red",
-    "High": "orange", 
-    "Moderate": "green",
-    "Low": "blue"
+    "Critical": "#ff0000",  # red
+    "High": "#ff7f00",      # orange
+    "Moderate": "#00ff00",  # green
+    "Low": "#1f78b4"        # blue
 }
 
 # ======================
-# TABS
+# PAGE ROUTING
 # ======================
-tab1, tab2, tab3 = st.tabs(["Introduction", "Interactive Map", "Summary"])
-
-with tab1:
+if page == "Home":
     st.title("Kenya Agricultural Monitoring System")
     st.markdown("""
     ## Welcome to the Kenya Agricultural Monitoring System
@@ -100,37 +103,22 @@ with tab1:
     - Access summary statistics and trends
     """)
 
-with tab2:
+elif page == "Interactive Map":
     st.title("Interactive Agricultural Risk Map")
     city_df = load_city_data()
     county_geojson = load_county_geojson()
     view_mode = st.radio("Map View", ["City Markers", "County Choropleth", "Combined View"], horizontal=True)
     selected_type = st.selectbox("Filter by Risk Type", options=["All"] + sorted(set(v['type'] for v in region_agricultural_risks.values())))
 
-    county_counts = city_df['admin_name'].value_counts().reset_index()
-    county_counts.columns = ['admin_name', 'city_count']
-
     m = folium.Map(location=[0.2, 37.0], zoom_start=6, tiles='CartoDB positron')
 
     if view_mode in ["County Choropleth", "Combined View"]:
-        possible_keys = ["shapeName", "name", "NAME_1", "admin", "ADM1_EN"]
         geo_key = None
-        for key in possible_keys:
-            if "features" in county_geojson and len(county_geojson["features"]) > 0:
-                if key in county_geojson["features"][0]["properties"]:
-                    geo_key = key
-                    break
+        for key in ["shapeName", "name", "NAME_1", "admin", "ADM1_EN"]:
+            if "features" in county_geojson and len(county_geojson["features"]) > 0 and key in county_geojson["features"][0]["properties"]:
+                geo_key = key
+                break
         if geo_key:
-            folium.Choropleth(
-                geo_data=county_geojson,
-                data=county_counts,
-                columns=['admin_name', 'city_count'],
-                key_on=f'feature.properties.{geo_key}',
-                fill_color='YlGnBu',
-                fill_opacity=0.7,
-                line_opacity=0.2,
-                legend_name='Number of Major Cities'
-            ).add_to(m)
             for feature in county_geojson['features']:
                 county = feature['properties'][geo_key]
                 risk_info = region_agricultural_risks.get(county, region_agricultural_risks["DEFAULT"])
@@ -140,8 +128,9 @@ with tab2:
                         feature,
                         tooltip=tooltip_text,
                         style_function=lambda x, severity=risk_info['severity']: {
-                            'fillOpacity': 0.1,
+                            'fillColor': risk_color_map[severity],
                             'color': risk_color_map[severity],
+                            'fillOpacity': 0.6,
                             'weight': 1
                         }
                     ).add_to(m)
@@ -169,12 +158,12 @@ with tab2:
                     location=[city['lat'], city['lng']],
                     popup=folium.Popup(popup_html, max_width=300),
                     tooltip=f"{city['city']} ({risk_info['severity']} risk)",
-                    icon=folium.Icon(color=risk_color_map[risk_info['severity']], icon='leaf', prefix='fa')
+                    icon=folium.Icon(color='gray', icon='leaf', prefix='fa')
                 ).add_to(marker_cluster)
 
     st_folium(m, width=1000, height=650)
 
-with tab3:
+elif page == "Summary":
     st.title("Agricultural Risk Summary")
     city_df = load_city_data()
     county_counts = city_df['admin_name'].value_counts().reset_index()
@@ -190,3 +179,21 @@ with tab3:
     st.dataframe(county_counts, height=300)
     st.subheader("Sample City Data")
     st.dataframe(city_df.head(10), height=300)
+
+elif page == "About":
+    st.title("About This Project")
+    st.markdown("""
+    This system is built to visualize and monitor agricultural risks across Kenya. It combines geospatial data with domain-specific risk analysis to provide decision-support for policymakers, insurers, and researchers.
+
+    **Built with:** Streamlit, Folium, Python
+    """)
+
+elif page == "Contact":
+    st.title("Contact Us")
+    st.markdown("""
+    For inquiries or suggestions, please contact us at:
+
+    📧 Email: info@kenyarisksystem.org
+    📞 Phone: +254 700 123 456
+    🌐 Website: www.kenyarisksystem.org
+    """)
