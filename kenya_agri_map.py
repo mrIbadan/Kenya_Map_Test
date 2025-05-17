@@ -1,4 +1,6 @@
+import streamlit as st
 import folium
+from streamlit_folium import st_folium
 import pandas as pd
 
 # Sample data for Kenya agriculture projects
@@ -23,5 +25,6 @@ for _, row in data.iterrows():
         icon=folium.Icon(color=color, icon='leaf', prefix='fa')
     ).add_to(m)
 
-# Display map inline in Jupyter Notebook
-m
+# Use streamlit_folium to render the map in Streamlit
+st.title('Kenya Agriculture Projects Map')
+st_folium(m, width=700, height=500)
